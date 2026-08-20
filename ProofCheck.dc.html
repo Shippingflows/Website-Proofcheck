@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<title>ProofCheck — catch label errors before they print</title>
+<meta name="description" content="ProofCheck compares supplier proofs against your approved master and shows every difference with visual evidence — before anything goes to print. Human-approved reviews, no hardware, no contract.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Ccircle cx='7' cy='7' r='4.2' fill='none' stroke='%2317191C' stroke-width='1.2'/%3E%3Cpath d='M7 0.5V13.5M0.5 7H13.5' stroke='%2317191C' stroke-width='1'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#FBFBF9;--ink:#17191C;--graphite:#565E66;--rule:#E5E3DD;
+  --proof-red:#C6272E;--stamp-green:#1E6F44;--caution-amber:#A9731D;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:'IBM Plex Sans',system-ui,-apple-system,sans-serif;font-size:17px;line-height:1.6;font-weight:400;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+h1,h2,h3{font-family:'Source Serif 4','PT Serif',Georgia,serif;font-weight:600;margin:0;letter-spacing:-0.01em}
+p{margin:0}
+a{color:var(--ink)}
+a:hover{color:var(--ink)}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:3px}
+summary{list-style:none}
+summary::-webkit-details-marker{display:none}
+details[open] .faq-plus{transform:rotate(45deg)}
+input,textarea,button{font-family:inherit}
+@media (max-width:900px){ .nav-evidence{display:none} }
+@media (max-width:768px){ .nav-links{display:none!important} }
+</style>
+</helmet>
+
+<sc-if value="{{ showCrop }}" hint-placeholder-val="{{ true }}">
+<div aria-hidden="true">
+  <span style="position:fixed;top:16px;left:16px;width:16px;height:16px;border-top:1.5px solid var(--ink);border-left:1.5px solid var(--ink);pointer-events:none;z-index:5"></span>
+  <span style="position:fixed;top:16px;right:16px;width:16px;height:16px;border-top:1.5px solid var(--ink);border-right:1.5px solid var(--ink);pointer-events:none;z-index:5"></span>
+  <span style="position:fixed;bottom:16px;left:16px;width:16px;height:16px;border-bottom:1.5px solid var(--ink);border-left:1.5px solid var(--ink);pointer-events:none;z-index:5"></span>
+  <span style="position:fixed;bottom:16px;right:16px;width:16px;height:16px;border-bottom:1.5px solid var(--ink);border-right:1.5px solid var(--ink);pointer-events:none;z-index:5"></span>
+</div>
+</sc-if>
+
+<!-- ============ NAV ============ -->
+<header style="position:sticky;top:0;z-index:10;background:var(--paper);border-bottom:1px solid var(--rule)">
+  <nav style="max-width:1120px;margin:0 auto;padding:0 24px;height:66px;display:flex;align-items:center;justify-content:space-between;gap:24px">
+    <a href="#top" style="display:flex;align-items:center;gap:10px;text-decoration:none">
+      <svg width="16" height="16" viewBox="0 0 14 14" style="flex:none"><circle cx="7" cy="7" r="4.2" fill="none" stroke="var(--ink)" stroke-width="1.2"/><path d="M7 0.5V13.5M0.5 7H13.5" stroke="var(--ink)" stroke-width="1"/></svg>
+      <span style="font-family:'Source Serif 4',Georgia,serif;font-size:20px;font-weight:600;color:var(--ink)">ProofCheck</span>
+    </a>
+    <div class="nav-links" style="display:flex;align-items:center;gap:28px">
+      <a href="#how-it-works" style="font-size:15px;text-decoration:none;color:var(--graphite)" style-hover="color:var(--ink);text-decoration:underline">How it works</a>
+      <a href="#comparisons" style="font-size:15px;text-decoration:none;color:var(--graphite)" style-hover="color:var(--ink);text-decoration:underline">Comparisons</a>
+      <a href="#evidence" class="nav-evidence" style="font-size:15px;text-decoration:none;color:var(--graphite)" style-hover="color:var(--ink);text-decoration:underline">Evidence</a>
+      <a href="#security" style="font-size:15px;text-decoration:none;color:var(--graphite)" style-hover="color:var(--ink);text-decoration:underline">Security</a>
+      <a href="#faq" style="font-size:15px;text-decoration:none;color:var(--graphite)" style-hover="color:var(--ink);text-decoration:underline">FAQ</a>
+    </div>
+    <a href="#pilot" style="background:var(--ink);color:var(--paper);padding:11px 20px;border-radius:6px;border:1px solid var(--ink);font-size:14px;font-weight:500;text-decoration:none;white-space:nowrap" style-hover="background:#0d0e10">Start a 2-week pilot</a>
+  </nav>
+</header>
+
+<main id="top">
+
+<!-- ============ HERO ============ -->
+<section style="padding:clamp(64px,8vw,120px) 0;scroll-margin-top:88px">
+  <div style="max-width:1120px;margin:0 auto;padding:0 24px">
+    <div style="display:flex;flex-wrap:wrap;gap:clamp(40px,6vw,72px);align-items:center">
+      <div style="flex:1 1 460px;min-width:min(100%,320px)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:22px">
+          <sc-if value="{{ showReg }}" hint-placeholder-val="{{ true }}"><svg width="13" height="13" viewBox="0 0 14 14" style="flex:none"><circle cx="7" cy="7" r="4.2" fill="none" stroke="var(--graphite)" stroke-width="1.2"/><path d="M7 0.5V13.5M0.5 7H13.5" stroke="var(--graphite)" stroke-width="1"/></svg></sc-if>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite)">Document proofing for quality teams</span>
+        </div>
+        <h1 style="font-size:clamp(40px,6vw,72px);line-height:1.05;max-width:14ch">Catch label errors before they print.</h1>
+        <p style="font-size:18px;color:var(--graphite);max-width:60ch;margin-top:24px">ProofCheck compares a supplier's proof against your approved master and shows every difference — ranked by severity, with visual evidence from both documents. Your reviewer makes every final call.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin-top:32px">
+          <a href="#pilot" style="background:var(--ink);color:var(--paper);padding:13px 26px;border-radius:6px;border:1px solid var(--ink);font-size:15px;font-weight:500;text-decoration:none" style-hover="background:#0d0e10">Start a 2-week pilot</a>
+          <a href="#how-it-works" style="color:var(--ink);font-size:15px;font-weight:500;text-decoration:none" style-hover="text-decoration:underline">See how it works ↓</a>
+        </div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--graphite);margin-top:22px">No hardware · No contract · A human approves every review</div>
+      </div>
+
+      <!-- signature: marked-up proof chip -->
+      <div style="flex:1 1 360px;min-width:min(100%,300px)">
+        <div style="position:relative;background:var(--paper);border:1px solid var(--rule);border-radius:10px;padding:30px 28px;max-width:420px;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+          <span style="position:absolute;top:-1px;left:-1px;width:12px;height:12px;border-top:1.5px solid var(--ink);border-left:1.5px solid var(--ink)"></span>
+          <span style="position:absolute;top:-1px;right:-1px;width:12px;height:12px;border-top:1.5px solid var(--ink);border-right:1.5px solid var(--ink)"></span>
+          <span style="position:absolute;bottom:-1px;left:-1px;width:12px;height:12px;border-bottom:1.5px solid var(--ink);border-left:1.5px solid var(--ink)"></span>
+          <span style="position:absolute;bottom:-1px;right:-1px;width:12px;height:12px;border-bottom:1.5px solid var(--ink);border-right:1.5px solid var(--ink)"></span>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite);margin-bottom:18px">Storage &amp; handling</div>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px">
+            <span style="{{ correctionStyle }}">Store refrigerated at 2°C to 8°C.</span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--stamp-green);border:1px solid var(--stamp-green);background:rgba(30,111,68,.06);padding:3px 7px;border-radius:3px;transform:rotate(-3deg);white-space:nowrap">Approved master</span>
+          </div>
+          <div style="position:relative;display:inline-block">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:15px;color:var(--graphite)">Store at 15°C to 25°C.</span>
+            <span aria-hidden="true" style="{{ strikeStyle }}"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ THE GAP ============ -->
+<section data-reveal style="border-top:1px solid var(--rule);padding:clamp(72px,9vw,130px) 0;scroll-margin-top:88px">
+  <div style="max-width:1120px;margin:0 auto;padding:0 24px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px">
+      <sc-if value="{{ showReg }}" hint-placeholder-val="{{ true }}"><svg width="13" height="13" viewBox="0 0 14 14" style="flex:none"><circle cx="7" cy="7" r="4.2" fill="none" stroke="var(--graphite)" stroke-width="1.2"/><path d="M7 0.5V13.5M0.5 7H13.5" stroke="var(--graphite)" stroke-width="1"/></svg></sc-if>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite)">The gap</span>
+    </div>
+    <h2 style="font-size:clamp(28px,4vw,44px);line-height:1.12;max-width:20ch">The scanner checks the print. Nobody checks the file.</h2>
+    <p style="color:var(--graphite);max-width:65ch;margin-top:26px">Print-inspection systems verify that the press reproduced the proof faithfully. But if the wrong value is already baked into the file, the print passes — and the error ships with a clean report attached. Today that last line of defense is a person, comparing documents line by line by eye. Ten reviewers will read the same die-line ten different ways, and one missed storage condition, ingredient, or kit reference becomes a reprint, a rejected lot, or a recall.</p>
+    <p style="max-width:65ch;margin-top:22px;font-weight:500;color:var(--ink)">ProofCheck is the gate before print: was the file correct in the first place?</p>
+  </div>
+</section>
+
+<!-- ============ HOW IT WORKS ============ -->
+<section id="how-it-works" data-reveal style="border-top:1px solid var(--rule);padding:clamp(72px,9vw,130px) 0;scroll-margin-top:88px">
+  <div style="max-width:1120px;margin:0 auto;padding:0 24px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px">
+      <sc-if value="{{ showReg }}" hint-placeholder-val="{{ true }}"><svg width="13" height="13" viewBox="0 0 14 14" style="flex:none"><circle cx="7" cy="7" r="4.2" fill="none" stroke="var(--graphite)" stroke-width="1.2"/><path d="M7 0.5V13.5M0.5 7H13.5" stroke="var(--graphite)" stroke-width="1"/></svg></sc-if>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite)">How it works</span>
+    </div>
+    <h2 style="font-size:clamp(28px,4vw,44px);line-height:1.12;max-width:18ch">Two files in. Every difference out.</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:40px;margin-top:52px">
+      <div style="border-top:2px solid var(--ink);padding-top:20px">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--graphite);margin-bottom:12px">01</div>
+        <h3 style="font-family:'IBM Plex Sans',sans-serif;font-size:21px;font-weight:600">Upload both files</h3>
+        <p style="color:var(--graphite);font-size:16px;margin-top:10px">Your approved master and the supplier's proof. PDF, PNG, JPG, or TIFF — including scans of physically printed samples.</p>
+      </div>
+      <div style="border-top:2px solid var(--ink);padding-top:20px">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--graphite);margin-bottom:12px">02</div>
+        <h3 style="font-family:'IBM Plex Sans',sans-serif;font-size:21px;font-weight:600">Review the findings</h3>
+        <p style="color:var(--graphite);font-size:16px;margin-top:10px">Every difference, ranked Critical to Info. Each finding shows cropped evidence from both documents, side by side — try it yourself in the <a href="#comparisons" style="color:var(--ink);text-decoration:underline">comparisons below</a>.</p>
+      </div>
+      <div style="border-top:2px solid var(--ink);padding-top:20px">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--graphite);margin-bottom:12px">03</div>
+        <h3 style="font-family:'IBM Plex Sans',sans-serif;font-size:21px;font-weight:600">Approve or send corrections</h3>
+        <p style="color:var(--graphite);font-size:16px;margin-top:10px">Confirm findings and sign off, or send the pre-drafted correction email to your supplier and re-review the fix.</p>
+      </div>
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--graphite);margin-top:36px">Typical review: minutes, not the hour it takes by hand.</div>
+  </div>
+</section>
+
+<!-- ============ REAL-WORLD COMPARISONS ============ -->
+<section id="comparisons" data-reveal style="border-top:1px solid var(--rule);padding:clamp(72px,9vw,130px) 0;scroll-margin-top:88px">
+  <div style="max-width:1120px;margin:0 auto;padding:0 24px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px">
+      <sc-if value="{{ showReg }}" hint-placeholder-val="{{ true }}"><svg width="13" height="13" viewBox="0 0 14 14" style="flex:none"><circle cx="7" cy="7" r="4.2" fill="none" stroke="var(--graphite)" stroke-width="1.2"/><path d="M7 0.5V13.5M0.5 7H13.5" stroke="var(--graphite)" stroke-width="1"/></svg></sc-if>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite)">Real-world comparisons</span>
+    </div>
+    <h2 style="font-size:clamp(28px,4vw,44px);line-height:1.12;max-width:18ch">See it on documents you already know.</h2>
+    <p style="color:var(--graphite);max-width:60ch;margin-top:24px">Pick a label type. On the left, the approved master. On the right, the supplier's proof — with every planted difference found, marked, and ranked.</p>
+
+    <div role="tablist" aria-label="Label type" style="display:flex;gap:28px;border-bottom:1px solid var(--rule);margin-top:44px;overflow-x:auto">
+      <button type="button" role="tab" aria-selected="{{ foodSel }}" onClick="{{ onTab0 }}" style="{{ tabStyle0 }}">Food label</button>
+      <button type="button" role="tab" aria-selected="{{ suppSel }}" onClick="{{ onTab1 }}" style="{{ tabStyle1 }}">Supplement label</button>
+      <button type="button" role="tab" aria-selected="{{ kitSel }}" onClick="{{ onTab2 }}" style="{{ tabStyle2 }}">Medical kit label</button>
+    </div>
+
+    <div style="margin-top:26px">
+      <button type="button" role="switch" aria-checked="{{ switchAria }}" onClick="{{ onToggle }}" style="display:inline-flex;align-items:center;gap:10px;background:none;border:none;cursor:pointer;padding:6px 2px;color:var(--ink)">
+        <span style="{{ trackStyle }}"><span style="{{ knobStyle }}"></span></span>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.06em;text-transform:uppercase">Show findings</span>
+      </button>
+    </div>
+
+    <!-- ---------- FOOD ---------- -->
+    <sc-if value="{{ isFood }}" hint-placeholder-val="{{ true }}">
+    <div style="margin-top:32px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:28px;align-items:start">
+        <!-- master -->
+        <div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite);margin-bottom:10px">Approved master</div>
+          <div style="position:relative;background:#fff;border:1px solid var(--rule);border-radius:4px;padding:20px;color:#111">
+            <span style="position:absolute;top:-1px;left:-1px;width:10px;height:10px;border-top:1.5px solid var(--ink);border-left:1.5px solid var(--ink)"></span><span style="position:absolute;top:-1px;right:-1px;width:10px;height:10px;border-top:1.5px solid var(--ink);border-right:1.5px solid var(--ink)"></span><span style="position:absolute;bottom:-1px;left:-1px;width:10px;height:10px;border-bottom:1.5px solid var(--ink);border-left:1.5px solid var(--ink)"></span><span style="position:absolute;bottom:-1px;right:-1px;width:10px;height:10px;border-bottom:1.5px solid var(--ink);border-right:1.5px solid var(--ink)"></span>
+            <div style="font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#555">Harvest Lane Foods Co.</div>
+            <div style="font-size:21px;font-weight:800;letter-spacing:-.01em;line-height:1.05;margin-top:3px">Harvest Lane Granola</div>
+            <div style="font-size:12px;color:#333;margin-top:1px">Sea Salt &amp; Honey</div>
+            <div style="font-size:11px;font-weight:700;margin-top:6px">NET WT 340 g (12 oz)</div>
+            <div style="height:1px;background:#e2e2e2;margin:12px 0"></div>
+            <div style="border:1.5px solid #111;padding:6px 8px;max-width:230px">
+              <div style="font-weight:800;font-size:19px;line-height:1;border-bottom:7px solid #111;padding-bottom:2px">Nutrition Facts</div>
+              <div style="font-size:9px;border-bottom:1px solid #111;padding:2px 0">Servings about 6</div>
+              <div style="font-size:10px;border-bottom:5px solid #111;padding:3px 0">Serving size <b>1/2 cup (55g)</b></div>
+              <div style="font-size:8px;padding-top:3px">Amount per serving</div>
+              <div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:4px solid #111;padding-bottom:2px"><span style="font-weight:800;font-size:15px">Calories</span><span style="font-weight:800;font-size:21px">210</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:9px;border-bottom:1px solid #ccc;padding:2px 0"><span>Total Fat 7g</span><span></span></div>
+              <div style="display:flex;justify-content:space-between;font-size:9px;border-bottom:1px solid #ccc;padding:2px 0"><span>Sodium 135mg</span><span></span></div>
+              <div style="display:flex;justify-content:space-between;font-size:9px;border-bottom:1px solid #ccc;padding:2px 0"><span>Total Carbohydrate 33g</span><span></span></div>
+              <div style="display:flex;justify-content:space-between;font-size:9px;border-bottom:1px solid #ccc;padding:2px 0;padding-left:10px"><span>Sugars 9g</span><span></span></div>
+              <div style="display:flex;justify-content:space-between;font-size:9px;padding:2px 0"><span>Protein 5g</span><span></span></div>
+            </div>
+            <div style="font-size:9px;line-height:1.4;margin-top:10px"><b>INGREDIENTS:</b> Whole grain oats, honey, sunflower oil, almonds, sea salt.</div>
+            <div style="font-size:10px;font-weight:700;margin-top:6px">Contains: almonds. Made in a facility that processes peanuts.</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;margin-top:10px;color:#111">BEST BY 03/2027 · LOT HL-2214</div>
+            <div style="margin-top:12px"><div style="height:30px;width:160px;background:repeating-linear-gradient(90deg,#111 0 2px,#fff 2px 3px,#111 3px 6px,#fff 6px 7px,#111 7px 8px,#fff 8px 11px,#111 11px 13px,#fff 13px 14px)"></div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.2em;margin-top:3px;color:#111">0 84617 20143 7</div></div>
+          </div>
+        </div>
+        <!-- proof -->
+        <div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite);margin-bottom:10px">Supplier proof</div>
+          <div style="position:relative;background:#fff;border:1px solid var(--rule);border-radius:4px;padding:20px;color:#111">
+            <span style="position:absolute;top:-1px;left:-1px;width:10px;height:10px;border-top:1.5px solid var(--ink);border-left:1.5px solid var(--ink)"></span><span style="position:absolute;top:-1px;right:-1px;width:10px;height:10px;border-top:1.5px solid var(--ink);border-right:1.5px solid var(--ink)"></span><span style="position:absolute;bottom:-1px;left:-1px;width:10px;height:10px;border-bottom:1.5px solid var(--ink);border-left:1.5px solid var(--ink)"></span><span style="position:absolute;bottom:-1px;right:-1px;width:10px;height:10px;border-bottom:1.5px solid var(--ink);border-right:1.5px solid var(--ink)"></span>
+            <div style="font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#555">Harvest Lane Foods Co.</div>
+            <div style="font-size:21px;font-weight:800;letter-spacing:-.01em;line-height:1.05;margin-top:3px">Harvest Lane Granola</div>
+            <div style="font-size:12px;color:#333;margin-top:1px">Sea Salt &amp; Honey</div>
+            <div style="font-size:11px;font-weight:700;margin-top:6px">NET WT 340 g (12 oz)</div>
+            <div style="height:1px;background:#e2e2e2;margin:12px 0"></div>
+            <div style="border:1.5px solid #111;padding:6px 8px;max-width:230px">
+              <div style="font-weight:800;font-size:19px;line-height:1;border-bottom:7px solid #111;padding-bottom:2px">Nutrition Facts</div>
+              <div style="font-size:9px;border-bottom:1px solid #111;padding:2px 0">Servings about 6</div>
+              <div style="display:flex;align-items:center;font-size:10px;border-bottom:5px solid #111;padding:3px 0"><span style="{{ markerWrap }}"><span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--proof-red);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;flex:none">2</span></span><span>Serving size <b>3/4 cup (82g)</b></span></div>
+              <div style="font-size:8px;padding-top:3px">Amount per serving</div>
+              <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:4px solid #111;padding-bottom:2px"><span style="display:flex;align-items:center"><span style="{{ markerWrap }}"><span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--proof-red);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;flex:none">3</span></span><span style="font-weight:800;font-size:15px">Calories</span></span><span style="font-weight:800;font-size:21px">230</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:9px;border-bottom:1px solid #ccc;padding:2px 0"><span>Total Fat 7g</span><span></span></div>
+              <div style="display:flex;justify-content:space-between;font-size:9px;border-bottom:1px solid #ccc;padding:2px 0"><span>Sodium 135mg</span><span></span></div>
+              <div style="display:flex;justify-content:space-between;font-size:9px;border-bottom:1px solid #ccc;padding:2px 0"><span>Total Carbohydrate 33g</span><span></span></div>
+              <div style="display:flex;justify-content:space-between;font-size:9px;border-bottom:1px solid #ccc;padding:2px 0;padding-left:10px"><span>Sugars 9g</span><span></span></div>
+              <div style="display:flex;justify-content:space-between;font-size:9px;padding:2px 0"><span>Protein 5g</span><span></span></div>
+            </div>
+            <div style="font-size:9px;line-height:1.4;margin-top:10px"><b>INGREDIENTS:</b> Whole grain oats, honey, sunflower oil, almonds, sea salt.</div>
+            <div style="margin-top:6px"><div style="{{ ghostRow }}"><span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--proof-red);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;flex:none">1</span><span style="border-top:1px dashed var(--proof-red);color:var(--proof-red);font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:.05em;padding-top:3px;flex:1">ALLERGEN STATEMENT MISSING</span></div></div>
+            <div style="display:flex;align-items:center;font-family:'IBM Plex Mono',monospace;font-size:9px;margin-top:10px;color:#111"><span style="{{ markerWrap }}"><span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--proof-red);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;flex:none">4</span></span><span>BB 3/27 · LOT HL-2214</span></div>
+            <div style="margin-top:12px"><div style="height:30px;width:160px;background:repeating-linear-gradient(90deg,#111 0 2px,#fff 2px 3px,#111 3px 6px,#fff 6px 7px,#111 7px 8px,#fff 8px 11px,#111 11px 13px,#fff 13px 14px)"></div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.2em;margin-top:3px;color:#111">0 84617 20143 7</div></div>
+          </div>
+        </div>
+      </div>
+      <div style="{{ findWrapStyle }}"><div style="min-height:0"><div style="margin-top:28px">
+        <div style="display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--rule)"><span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--proof-red);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;flex:none">1</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--proof-red);background:rgba(198,39,46,.09);padding:3px 7px;border-radius:4px;flex:none;white-space:nowrap">Critical</span><span style="flex:1;font-size:14px;color:var(--ink);text-wrap:pretty">Allergen statement missing. <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--graphite)">"Contains: almonds…" → omitted</span></span></div>
+        <div style="display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--rule)"><span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--proof-red);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;flex:none">2</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--caution-amber);background:rgba(169,115,29,.10);padding:3px 7px;border-radius:4px;flex:none;white-space:nowrap">Major</span><span style="flex:1;font-size:14px;color:var(--ink);text-wrap:pretty">Serving size changed. <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--graphite)">"1/2 cup (55 g)" → "3/4 cup (82 g)"</span></span></div>
+        <div style="display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--rule)"><span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--proof-red);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;flex:none">3</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite);background:rgba(86,94,102,.10);padding:3px 7px;border-radius:4px;flex:none;white-space:nowrap">Minor</span><span style="flex:1;font-size:14px;color:var(--ink);text-wrap:pretty">Calories changed. <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--graphite)">"210" → "230"</span></span></div>
+        <div style="display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)"><span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--proof-red);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;flex:none">4</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite);background:rgba(86,94,102,.10);padding:3px 7px;border-radius:4px;flex:none;white-space:nowrap">Minor</span><span style="flex:1;font-size:14px;color:var(--ink);text-wrap:pretty">Best-by format changed. <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--graphite)">"BEST BY 03/2027" → "BB 3/27"</span></span></div>
+      </div></div></div>
+    </div>
+    </sc-if>
+
+    <!-- ---------- SUPPLEMENT ---------- -->
+    <sc-if value="{{ isSupp }}">
+    <div style="margin-top:32px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:28px;align-items:start">
+        <!-- master -->
+        <div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite);margin-bottom:10px">Approved master</div>
+          <div style="position:relative;background:#fff;border:1px solid var(--rule);border-radius:4px;padding:20px;color:#111">
+            <span style="position:absolute;top:-1px;left:-1px;width:10px;height:10px;border-top:1.5px solid var(--ink);border-left:1.5px solid var(--ink)"></span><span style="position:absolute;top:-1px;right:-1px;width:10px;height:10px;border-top:1.5px solid var(--ink);border-right:1.5px solid var(--ink)"></span><span style="position:absolute;bottom:-1px;left:-1px;width:10px;height:10px;border-bottom:1.5px solid var(--ink);border-left:1.5px solid var(--ink)"></span><span style="position:absolute;bottom:-1px;right:-1px;width:10px;height:10px;border-bottom:1.5px solid var(--ink);border-right:1.5px solid var(--ink)"></span>
+            <div style="font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#555">Northbay Wellness Ltd.</div>
+            <div style="font-size:21px;font-weight:800;line-height:1.05;margin-top:3px">DailyShield</div>
+            <div style="font-size:13px;font-weight:700;color:#333;margin-top:1px">Vitamin D3 · 2000 IU</div>
+            <div style="font-size:11px;color:#333;margin-top:2px">90 softgels</div>
+            <div style="font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#555;margin-top:6px">Dietary Supplement</div>
+            <div style="height:1px;background:#e2e2e2;margin:12px 0"></div>
+            <div style="border:1.5px solid #111;padding:6px 8px;max-width:230px">
+              <div style="font-weight:800;font-size:16px;line-height:1;border-bottom:6px solid #111;padding-bottom:2px">Supplement Facts</div>
+              <div style="font-size:9px;border-bottom:5px solid #111;padding:3px 0">Serving Size 1 softgel</div>
+              <div style="display:flex;justify-content:flex-end;font-size:8px;padding-top:2px;color:#555"><span>% Daily Value</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:9px;border-bottom:1px solid #ccc;padding:2px 0"><span><b>Vitamin D3</b> 50 mcg (2000 IU)</span><span><b>250%</b></span></div>
+            </div>
+            <div style="font-size:9px;line-height:1.4;margin-top:10px"><b>Suggested use:</b> Take 1 softgel daily with food.</div>
+            <div style="font-size:10px;font-weight:700;margin-top:6px">Keep out of reach of children. Consult a physician if pregnant or nursing.</div>
+            <div style="font-size:9.5px;margin-top:6px">Store below 25°C in a dry place.</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;margin-top:10px;color:#111">LOT NB-8841 · EXP 09/2027</div>
+            <div style="margin-top:12px"><div style="height:30px;width:160px;background:repeating-linear-gradient(90deg,#111 0 2px,#fff 2px 3px,#111 3px 6px,#fff 6px 7px,#111 7px 8px,#fff 8px 11px,#111 11px 13px,#fff 13px 14px)"></div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.2em;margin-top:3px;color:#111">7 61220 88410 2</div></div>
+          </div>
+        </div>
+        <!-- proof -->
+        <div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite);margin-bottom:10px">Supplier proof</div>
+          <div style="position:relative;background:#fff;border:1px solid var(--rule);border-radius:4px;padding:20px;color:#111">
+            <span style="position:absolute;top:-1px;left:-1px;width:10px;height:10px;border-top:1.5px solid var(--ink);border-left:1.5px solid var(--ink)"></span><span style="position:absolute;top:-1px;right:-1px;width:10px;height:10px;border-top:1.5px solid var(--ink);border-right:1.5px solid var(--ink)"></span><span style="position:absolute;bottom:-1px;left:-1px;width:10px;height:10px;border-bottom:1.5px solid var(--ink);border-left:1.5px solid var(--ink)"></span><span style="position:absolute;bottom:-1px;right:-1px;width:10px;height:10px;border-bottom:1.5px solid var(--ink);border-right:1.5px solid var(--ink)"></span>
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+              <div style="font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#555">Northbay Wellness Ltd.</div>
+              <div style="display:flex;align-items:center"><span style="{{ markerWrap }}"><span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--proof-red);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;flex:none">4</span></span><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#111">EXP 09/2027</span></div>
+            </div>
+            <div style="font-size:21px;font-weight:800;line-height:1.05;margin-top:3px">DailyShield</div>
+            <div style="font-size:13px;font-weight:700;color:#333;margin-top:1px">Vitamin D3 · 2000 IU</div>
+            <div style="font-size:11px;color:#333;margin-top:2px">90 softgels</div>
+            <div style="display:flex;align-items:center;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#555;margin-top:6px"><span style="{{ markerWrap }}"><span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--proof-red);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;flex:none">3</span></span><span>Dietary Supplemant</span></div>
+            <div style="height:1px;background:#e2e2e2;margin:12px 0"></div>
+            <div style="border:1.5px solid #111;padding:6px 8px;max-width:230px">
+              <div style="font-weight:800;font-size:16px;line-height:1;border-bottom:6px solid #111;padding-bottom:2px">Supplement Facts</div>
+              <div style="font-size:9px;border-bottom:5px solid #111;padding:3px 0">Serving Size 1 softgel</div>
+              <div style="display:flex;justify-content:flex-end;font-size:8px;padding-top:2px;color:#555"><span>% Daily Value</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:9px;border-bottom:1px solid #ccc;padding:2px 0"><span><b>Vitamin D3</b> 50 mcg (2000 IU)</span><span><b>250%</b></span></div>
+            </div>
+            <div style="font-size:9px;line-height:1.4;margin-top:10px"><b>Suggested use:</b> Take 1 softgel daily with food.</div>
+            <div style="display:flex;align-items:center;margin-top:6px"><span style="{{ markerWrap }}"><span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--proof-red);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;flex:none">2</span></span><span style="font-size:10px;font-weight:700">Keep out of reach of children.</span></div>
+            <div style="display:flex;align-items:center;margin-top:6px"><span style="{{ markerWrap }}"><span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--proof-red);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;flex:none">1</span></span><span style="font-size:9.5px">Store below 30°C in a dry place.</span></div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;margin-top:10px;color:#111">LOT NB-8841</div>
+            <div style="margin-top:12px"><div style="height:30px;width:160px;background:repeating-linear-gradient(90deg,#111 0 2px,#fff 2px 3px,#111 3px 6px,#fff 6px 7px,#111 7px 8px,#fff 8px 11px,#111 11px 13px,#fff 13px 14px)"></div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.2em;margin-top:3px;color:#111">7 61220 88410 2</div></div>
+          </div>
+        </div>
+      </div>
+      <div style="{{ findWrapStyle }}"><div style="min-height:0"><div style="margin-top:28px">
+        <div style="display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--rule)"><span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--proof-red);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;flex:none">1</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--proof-red);background:rgba(198,39,46,.09);padding:3px 7px;border-radius:4px;flex:none;white-space:nowrap">Critical</span><span style="flex:1;font-size:14px;color:var(--ink);text-wrap:pretty">Storage condition changed. <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--graphite)">"Store below 25°C" → "Store below 30°C"</span></span></div>
+        <div style="display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--rule)"><span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--proof-red);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;flex:none">2</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--caution-amber);background:rgba(169,115,29,.10);padding:3px 7px;border-radius:4px;flex:none;white-space:nowrap">Major</span><span style="flex:1;font-size:14px;color:var(--ink);text-wrap:pretty">Warning shortened. <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--graphite)">physician clause dropped</span></span></div>
+        <div style="display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--rule)"><span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--proof-red);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;flex:none">3</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite);background:rgba(86,94,102,.10);padding:3px 7px;border-radius:4px;flex:none;white-space:nowrap">Minor</span><span style="flex:1;font-size:14px;color:var(--ink);text-wrap:pretty">Spelling. <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--graphite)">"dietary supplement" → "dietary supplemant"</span></span></div>
+        <div style="display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)"><span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--proof-red);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;flex:none">4</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite);background:rgba(86,94,102,.10);padding:3px 7px;border-radius:4px;flex:none;white-space:nowrap">Minor</span><span style="flex:1;font-size:14px;color:var(--ink);text-wrap:pretty">Layout: expiry relocated. <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--graphite)">bottom lot line → top-right corner</span></span></div>
+      </div></div></div>
+    </div>
+    </sc-if>
+
+    <!-- ---------- MEDICAL KIT ---------- -->
+    <sc-if value="{{ isKit }}">
+    <div style="margin-top:32px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:28px;align-items:start">
+        <!-- master -->
+        <div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite);margin-bottom:10px">Approved master</div>
+          <div style="position:relative;background:#fff;border:1px solid var(--rule);border-radius:4px;padding:20px;color:#111">
+            <span style="position:absolute;top:-1px;left:-1px;width:10px;height:10px;border-top:1.5px solid var(--ink);border-left:1.5px solid var(--ink)"></span><span style="position:absolute;top:-1px;right:-1px;width:10px;height:10px;border-top:1.5px solid var(--ink);border-right:1.5px solid var(--ink)"></span><span style="position:absolute;bottom:-1px;left:-1px;width:10px;height:10px;border-bottom:1.5px solid var(--ink);border-left:1.5px solid var(--ink)"></span><span style="position:absolute;bottom:-1px;right:-1px;width:10px;height:10px;border-bottom:1.5px solid var(--ink);border-right:1.5px solid var(--ink)"></span>
+            <div style="font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#555">Meridex Clinical Supply</div>
+            <div style="font-size:20px;font-weight:800;line-height:1.05;margin-top:3px">Specimen Collection Kit</div>
+            <div style="font-size:12px;color:#333;margin-top:1px">12 ct</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;margin-top:6px;color:#111">REF KIT-9001-A</div>
+            <div style="height:1px;background:#e2e2e2;margin:12px 0"></div>
+            <div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#555;margin-bottom:5px">Contents</div>
+            <div style="font-size:10px;line-height:1.85">
+              <div>1× collection tube</div>
+              <div>2× sterile gauze pads</div>
+              <div>1× biohazard specimen bag with absorbent pad</div>
+              <div>1× instructions for use</div>
+            </div>
+            <div style="font-size:10px;font-weight:700;margin-top:8px">Single use only. Do not use if package is damaged.</div>
+            <div style="font-size:9.5px;margin-top:6px">Store at 15°C to 25°C.</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;margin-top:10px;color:#111">LOT MX-3307</div>
+            <div style="margin-top:12px"><div style="height:30px;width:160px;background:repeating-linear-gradient(90deg,#111 0 2px,#fff 2px 3px,#111 3px 6px,#fff 6px 7px,#111 7px 8px,#fff 8px 11px,#111 11px 13px,#fff 13px 14px)"></div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.2em;margin-top:3px;color:#111">3 30070 90013 5</div></div>
+          </div>
+        </div>
+        <!-- proof -->
+        <div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite);margin-bottom:10px">Supplier proof</div>
+          <div style="position:relative;background:#fff;border:1px solid var(--rule);border-radius:4px;padding:20px;color:#111">
+            <span style="position:absolute;top:-1px;left:-1px;width:10px;height:10px;border-top:1.5px solid var(--ink);border-left:1.5px solid var(--ink)"></span><span style="position:absolute;top:-1px;right:-1px;width:10px;height:10px;border-top:1.5px solid var(--ink);border-right:1.5px solid var(--ink)"></span><span style="position:absolute;bottom:-1px;left:-1px;width:10px;height:10px;border-bottom:1.5px solid var(--ink);border-left:1.5px solid var(--ink)"></span><span style="position:absolute;bottom:-1px;right:-1px;width:10px;height:10px;border-bottom:1.5px solid var(--ink);border-right:1.5px solid var(--ink)"></span>
+            <div style="font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#555">Meridex Clinical Supply</div>
+            <div style="font-size:20px;font-weight:800;line-height:1.05;margin-top:3px">Specimen Collection Kit</div>
+            <div style="font-size:12px;color:#333;margin-top:1px">12 ct</div>
+            <div style="display:flex;align-items:center;margin-top:6px"><span style="{{ markerWrap }}"><span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--proof-red);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;flex:none">1</span></span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;color:#111">REF KIT-9001-C</span></div>
+            <div style="height:1px;background:#e2e2e2;margin:12px 0"></div>
+            <div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#555;margin-bottom:5px">Contents</div>
+            <div style="font-size:10px;line-height:1.85">
+              <div>1× collection tube</div>
+              <div style="display:flex;align-items:center"><span style="{{ markerWrap }}"><span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--proof-red);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;flex:none">2</span></span><span>1× sterile gauze pad</span></div>
+              <div style="display:flex;align-items:center"><span style="{{ markerWrap }}"><span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--proof-red);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;flex:none">4</span></span><span>1× biohazard specimen bag with absorbant pad</span></div>
+              <div>1× instructions for use</div>
+            </div>
+            <div style="margin-top:8px"><div style="{{ ghostRow }}"><span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--proof-red);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;flex:none">3</span><span style="border-top:1px dashed var(--proof-red);color:var(--proof-red);font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:.05em;padding-top:3px;flex:1">SINGLE-USE STATEMENT MISSING</span></div></div>
+            <div style="font-size:9.5px;margin-top:6px">Store at 15°C to 25°C.</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;margin-top:10px;color:#111">LOT MX-3307</div>
+            <div style="margin-top:12px"><div style="height:30px;width:160px;background:repeating-linear-gradient(90deg,#111 0 2px,#fff 2px 3px,#111 3px 6px,#fff 6px 7px,#111 7px 8px,#fff 8px 11px,#111 11px 13px,#fff 13px 14px)"></div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.2em;margin-top:3px;color:#111">3 30070 90013 5</div></div>
+          </div>
+        </div>
+      </div>
+      <div style="{{ findWrapStyle }}"><div style="min-height:0"><div style="margin-top:28px">
+        <div style="display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--rule)"><span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--proof-red);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;flex:none">1</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--proof-red);background:rgba(198,39,46,.09);padding:3px 7px;border-radius:4px;flex:none;white-space:nowrap">Critical</span><span style="flex:1;font-size:14px;color:var(--ink);text-wrap:pretty">REF identifier changed. <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--graphite)">"KIT-9001-A" → "KIT-9001-C"</span></span></div>
+        <div style="display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--rule)"><span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--proof-red);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;flex:none">2</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--caution-amber);background:rgba(169,115,29,.10);padding:3px 7px;border-radius:4px;flex:none;white-space:nowrap">Major</span><span style="flex:1;font-size:14px;color:var(--ink);text-wrap:pretty">Contents quantity changed. <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--graphite)">"2× sterile gauze pads" → "1× sterile gauze pad"</span></span></div>
+        <div style="display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--rule)"><span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--proof-red);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;flex:none">3</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--caution-amber);background:rgba(169,115,29,.10);padding:3px 7px;border-radius:4px;flex:none;white-space:nowrap">Major</span><span style="flex:1;font-size:14px;color:var(--ink);text-wrap:pretty">Single-use statement missing. <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--graphite)">present → omitted</span></span></div>
+        <div style="display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)"><span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--proof-red);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;flex:none">4</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite);background:rgba(86,94,102,.10);padding:3px 7px;border-radius:4px;flex:none;white-space:nowrap">Minor</span><span style="flex:1;font-size:14px;color:var(--ink);text-wrap:pretty">Spelling. <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--graphite)">"absorbent pad" → "absorbant pad"</span></span></div>
+      </div></div></div>
+    </div>
+    </sc-if>
+
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--graphite);margin-top:36px">Example documents. Fictional brands, planted errors.</div>
+  </div>
+</section>
+
+<!-- ============ EVIDENCE ============ -->
+<section id="evidence" data-reveal style="border-top:1px solid var(--rule);padding:clamp(72px,9vw,130px) 0;scroll-margin-top:88px">
+  <div style="max-width:1120px;margin:0 auto;padding:0 24px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px">
+      <sc-if value="{{ showReg }}" hint-placeholder-val="{{ true }}"><svg width="13" height="13" viewBox="0 0 14 14" style="flex:none"><circle cx="7" cy="7" r="4.2" fill="none" stroke="var(--graphite)" stroke-width="1.2"/><path d="M7 0.5V13.5M0.5 7H13.5" stroke="var(--graphite)" stroke-width="1"/></svg></sc-if>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite)">Evidence, not verdicts</span>
+    </div>
+    <h2 style="font-size:clamp(28px,4vw,44px);line-height:1.12;max-width:18ch">You never take the system's word for anything.</h2>
+    <p style="color:var(--graphite);max-width:62ch;margin-top:24px">Every finding carries the pixels to prove it — cropped from both documents, at the exact spot that changed.</p>
+
+    <div style="display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start;margin-top:48px">
+      <!-- main finding card -->
+      <div style="position:relative;flex:1 1 440px;min-width:min(100%,300px);background:var(--paper);border:1px solid var(--rule);border-radius:10px;padding:26px;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+        <span style="position:absolute;top:-1px;left:-1px;width:12px;height:12px;border-top:1.5px solid var(--ink);border-left:1.5px solid var(--ink)"></span>
+        <span style="position:absolute;top:-1px;right:-1px;width:12px;height:12px;border-top:1.5px solid var(--ink);border-right:1.5px solid var(--ink)"></span>
+        <span style="position:absolute;bottom:-1px;left:-1px;width:12px;height:12px;border-bottom:1.5px solid var(--ink);border-left:1.5px solid var(--ink)"></span>
+        <span style="position:absolute;bottom:-1px;right:-1px;width:12px;height:12px;border-bottom:1.5px solid var(--ink);border-right:1.5px solid var(--ink)"></span>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:20px">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink)">Specimen collection kit — 12ct label</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--proof-red);background:rgba(198,39,46,.09);padding:3px 7px;border-radius:4px">Critical</span>
+        </div>
+        <div style="font-weight:600;font-size:16px;margin-bottom:14px">Storage &amp; handling</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:20px">
+          <div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite);margin-bottom:6px">Approved master</div>
+            <div style="font-family:'Source Serif 4',serif;font-style:italic;font-size:16px;color:var(--ink)">Store refrigerated at 2°C to 8°C.</div>
+          </div>
+          <div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite);margin-bottom:6px">Supplier proof</div>
+            <div style="font-family:'Source Serif 4',serif;font-style:italic;font-size:16px;color:var(--ink)">Store at 15°C to 25°C.</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px">
+          <div style="border:1px solid var(--rule);border-radius:4px;padding:12px;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.02) 3px,rgba(0,0,0,.02) 4px);filter:grayscale(1) contrast(1.03);opacity:.85">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite);margin-bottom:8px">Master</div>
+            <div style="font-family:'Source Serif 4',serif;font-size:12px;line-height:1.3;color:#333">Store refrigerated<br>at 2°C to 8°C.</div>
+          </div>
+          <div style="border:1px solid var(--rule);border-radius:4px;padding:12px;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.02) 3px,rgba(0,0,0,.02) 4px);filter:grayscale(1) contrast(1.03);opacity:.85">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite);margin-bottom:8px">Proof</div>
+            <div style="font-family:'Source Serif 4',serif;font-size:12px;line-height:1.3;color:#333">Store at 15°C<br>to 25°C.</div>
+          </div>
+        </div>
+        <p style="font-size:14px;color:var(--graphite);margin-bottom:20px">Storage conditions must match exactly.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button type="button" style="border:1px solid var(--ink);background:var(--ink);color:var(--paper);padding:8px 16px;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer" style-hover="background:#0d0e10">Confirm finding</button>
+          <button type="button" style="border:1px solid var(--rule);background:var(--paper);color:var(--graphite);padding:8px 16px;border-radius:6px;font-size:14px;cursor:pointer" style-hover="border-color:var(--graphite);color:var(--ink)">Dismiss</button>
+        </div>
+      </div>
+
+      <!-- mini finding card -->
+      <div style="position:relative;flex:0 1 300px;min-width:min(100%,260px);background:var(--paper);border:1px solid var(--rule);border-radius:10px;padding:22px;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+        <span style="position:absolute;top:-1px;left:-1px;width:10px;height:10px;border-top:1.5px solid var(--ink);border-left:1.5px solid var(--ink)"></span>
+        <span style="position:absolute;top:-1px;right:-1px;width:10px;height:10px;border-top:1.5px solid var(--ink);border-right:1.5px solid var(--ink)"></span>
+        <span style="position:absolute;bottom:-1px;left:-1px;width:10px;height:10px;border-bottom:1.5px solid var(--ink);border-left:1.5px solid var(--ink)"></span>
+        <span style="position:absolute;bottom:-1px;right:-1px;width:10px;height:10px;border-bottom:1.5px solid var(--ink);border-right:1.5px solid var(--ink)"></span>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite);background:rgba(86,94,102,.10);padding:3px 7px;border-radius:4px">Minor</span>
+        <div style="font-weight:600;font-size:16px;margin:16px 0 12px">Component description</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--ink)">
+          <span style="position:relative;color:var(--graphite)">absorbant<span aria-hidden="true" style="position:absolute;left:0;top:52%;width:100%;height:2px;background:var(--proof-red)"></span></span>
+          <span style="color:var(--graphite);margin:0 6px">→</span>
+          <span>absorbent</span>
+          <span style="color:var(--graphite)"> pad</span>
+        </div>
+      </div>
+    </div>
+
+    <p style="font-size:14px;color:var(--graphite);max-width:70ch;margin-top:26px">From a changed storage temperature to a single wrong letter — ranked, evidenced, and waiting for your call.</p>
+
+    <div style="margin-top:56px;padding-top:36px;border-top:1px solid var(--rule)">
+      <p style="font-family:'Source Serif 4',serif;font-size:24px;line-height:1.3;font-weight:600;max-width:26ch">In blind internal testing: 6 of 6 planted label errors caught, zero false positives.</p>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--graphite);margin-top:14px">Fabricated test documents · results depend on input quality</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ VERSION CONTROL ============ -->
+<section data-reveal style="border-top:1px solid var(--rule);padding:clamp(72px,9vw,130px) 0;scroll-margin-top:88px">
+  <div style="max-width:1120px;margin:0 auto;padding:0 24px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px">
+      <sc-if value="{{ showReg }}" hint-placeholder-val="{{ true }}"><svg width="13" height="13" viewBox="0 0 14 14" style="flex:none"><circle cx="7" cy="7" r="4.2" fill="none" stroke="var(--graphite)" stroke-width="1.2"/><path d="M7 0.5V13.5M0.5 7H13.5" stroke="var(--graphite)" stroke-width="1"/></svg></sc-if>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite)">Version control</span>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:clamp(40px,6vw,72px);align-items:flex-start">
+      <div style="flex:1 1 400px;min-width:min(100%,300px)">
+        <h2 style="font-size:clamp(28px,4vw,44px);line-height:1.12;max-width:20ch">Every review is pinned to the exact master it checked.</h2>
+        <p style="color:var(--graphite);max-width:60ch;margin-top:24px">Approved masters live in a controlled library. Each revision is tracked — file, date, and fingerprint — and every review is permanently tied to the revision it ran against. When artwork changes, you always know which version was checked, by whom, and what it said at the time.</p>
+      </div>
+      <div style="flex:1 1 360px;min-width:min(100%,280px)">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 0;border-top:1px solid var(--rule)">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink)">Master rev 3</span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--stamp-green);background:rgba(30,111,68,.09);padding:3px 7px;border-radius:4px">Active</span>
+          </div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--graphite);white-space:nowrap">d0b5…aa38 · 2026-05-14</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 0;border-top:1px solid var(--rule)">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--graphite)">Master rev 2</span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite)">Superseded</span>
+          </div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--graphite);white-space:nowrap">7c41…19be · 2026-02-02</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--graphite)">Master rev 1</span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite)">Superseded</span>
+          </div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--graphite);white-space:nowrap">a2f9…6d07 · 2025-11-20</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SECURITY ============ -->
+<section id="security" data-reveal style="border-top:1px solid var(--rule);padding:clamp(72px,9vw,130px) 0;scroll-margin-top:88px">
+  <div style="max-width:1120px;margin:0 auto;padding:0 24px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px">
+      <sc-if value="{{ showReg }}" hint-placeholder-val="{{ true }}"><svg width="13" height="13" viewBox="0 0 14 14" style="flex:none"><circle cx="7" cy="7" r="4.2" fill="none" stroke="var(--graphite)" stroke-width="1.2"/><path d="M7 0.5V13.5M0.5 7H13.5" stroke="var(--graphite)" stroke-width="1"/></svg></sc-if>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite)">Security &amp; privacy</span>
+    </div>
+    <h2 style="font-size:clamp(28px,4vw,44px);line-height:1.12;max-width:16ch">Your documents stay yours.</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:44px 56px;margin-top:52px">
+      <div style="border-top:1px solid var(--rule);padding-top:20px">
+        <h3 style="font-family:'IBM Plex Sans',sans-serif;font-size:19px;font-weight:600">Private by organization</h3>
+        <p style="color:var(--graphite);font-size:16px;margin-top:8px">Files, findings, and review packs are stored per organization and visible only to your team.</p>
+      </div>
+      <div style="border-top:1px solid var(--rule);padding-top:20px">
+        <h3 style="font-family:'IBM Plex Sans',sans-serif;font-size:19px;font-weight:600">A human signs off</h3>
+        <p style="color:var(--graphite);font-size:16px;margin-top:8px">No finding becomes a decision without your reviewer confirming it. The approver of record is always a person.</p>
+      </div>
+      <div style="border-top:1px solid var(--rule);padding-top:20px">
+        <h3 style="font-family:'IBM Plex Sans',sans-serif;font-size:19px;font-weight:600">Deletion on request</h3>
+        <p style="color:var(--graphite);font-size:16px;margin-top:8px">Ask and your documents are removed. Pilot material is handled under NDA when you need one.</p>
+      </div>
+      <div style="border-top:1px solid var(--rule);padding-top:20px">
+        <h3 style="font-family:'IBM Plex Sans',sans-serif;font-size:19px;font-weight:600">Built for careful teams</h3>
+        <p style="color:var(--graphite);font-size:16px;margin-top:8px">Access is controlled, activity is logged, and reviews leave an audit trail from upload to sign-off.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ NO COMMITMENT ============ -->
+<section data-reveal style="border-top:1px solid var(--rule);padding:clamp(72px,9vw,130px) 0;scroll-margin-top:88px">
+  <div style="max-width:1120px;margin:0 auto;padding:0 24px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px">
+      <sc-if value="{{ showReg }}" hint-placeholder-val="{{ true }}"><svg width="13" height="13" viewBox="0 0 14 14" style="flex:none"><circle cx="7" cy="7" r="4.2" fill="none" stroke="var(--graphite)" stroke-width="1.2"/><path d="M7 0.5V13.5M0.5 7H13.5" stroke="var(--graphite)" stroke-width="1"/></svg></sc-if>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite)">No commitment</span>
+    </div>
+    <h2 style="font-size:clamp(28px,4vw,44px);line-height:1.12;max-width:16ch">Pilot first. Earn its place after.</h2>
+    <p style="color:var(--graphite);max-width:62ch;margin-top:24px">No hardware to buy, no annual contract to sign, no procurement marathon. Run a two-week pilot on your real documents with our team reviewing alongside you. If ProofCheck doesn't earn its place, walk away — everything can be deleted on request.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:30px">
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.06em;color:var(--ink);border:1px solid var(--rule);border-radius:4px;padding:7px 12px">Two-week pilot</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.06em;color:var(--ink);border:1px solid var(--rule);border-radius:4px;padding:7px 12px">Month-to-month after</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.06em;color:var(--ink);border:1px solid var(--rule);border-radius:4px;padding:7px 12px">Cancel anytime</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FAQ ============ -->
+<section id="faq" data-reveal style="border-top:1px solid var(--rule);padding:clamp(72px,9vw,130px) 0;scroll-margin-top:88px">
+  <div style="max-width:820px;margin:0 auto;padding:0 24px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px">
+      <sc-if value="{{ showReg }}" hint-placeholder-val="{{ true }}"><svg width="13" height="13" viewBox="0 0 14 14" style="flex:none"><circle cx="7" cy="7" r="4.2" fill="none" stroke="var(--graphite)" stroke-width="1.2"/><path d="M7 0.5V13.5M0.5 7H13.5" stroke="var(--graphite)" stroke-width="1"/></svg></sc-if>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite)">Questions</span>
+    </div>
+    <h2 style="font-size:clamp(28px,4vw,44px);line-height:1.12;max-width:20ch;margin-bottom:40px">Asked by every quality team we talk to.</h2>
+
+    <details style="border-top:1px solid var(--ink)">
+      <summary style="display:flex;justify-content:space-between;align-items:center;gap:16px;padding:22px 0;cursor:pointer;font-size:19px;font-weight:500"><span>Does this replace our print-inspection system?</span><span class="faq-plus" style="font-family:'IBM Plex Mono',monospace;font-size:20px;color:var(--graphite);transition:transform .2s ease;flex:none">+</span></summary>
+      <p style="color:var(--graphite);max-width:66ch;padding-bottom:24px">No. Print inspection verifies the press reproduced the proof correctly — after printing. ProofCheck verifies the file was correct in the first place — before printing. They're two gates in the same quality chain, and ProofCheck runs alongside whatever inspection setup you already use.</p>
+    </details>
+    <details style="border-top:1px solid var(--rule)">
+      <summary style="display:flex;justify-content:space-between;align-items:center;gap:16px;padding:22px 0;cursor:pointer;font-size:19px;font-weight:500"><span>Can it check physical samples?</span><span class="faq-plus" style="font-family:'IBM Plex Mono',monospace;font-size:20px;color:var(--graphite);transition:transform .2s ease;flex:none">+</span></summary>
+      <p style="color:var(--graphite);max-width:66ch;padding-bottom:24px">Yes — scan the printed sample and upload the scan as the proof. Flatbed or wide-format scanner output works (PDF, TIFF, JPG). Results depend on capture quality, so a clean 300–600 dpi scan of the label area works best.</p>
+    </details>
+    <details style="border-top:1px solid var(--rule)">
+      <summary style="display:flex;justify-content:space-between;align-items:center;gap:16px;padding:22px 0;cursor:pointer;font-size:19px;font-weight:500"><span>Does it decide on its own?</span><span class="faq-plus" style="font-family:'IBM Plex Mono',monospace;font-size:20px;color:var(--graphite);transition:transform .2s ease;flex:none">+</span></summary>
+      <p style="color:var(--graphite);max-width:66ch;padding-bottom:24px">Never. It flags, ranks, and shows evidence. Your reviewer confirms or dismisses every finding and signs off on every review.</p>
+    </details>
+    <details style="border-top:1px solid var(--rule)">
+      <summary style="display:flex;justify-content:space-between;align-items:center;gap:16px;padding:22px 0;cursor:pointer;font-size:19px;font-weight:500"><span>Who can see our documents?</span><span class="faq-plus" style="font-family:'IBM Plex Mono',monospace;font-size:20px;color:var(--graphite);transition:transform .2s ease;flex:none">+</span></summary>
+      <p style="color:var(--graphite);max-width:66ch;padding-bottom:24px">Only your organization. Files are stored privately, access is controlled, and documents are deleted on request. We're happy to sign your NDA before a pilot.</p>
+    </details>
+    <details style="border-top:1px solid var(--rule)">
+      <summary style="display:flex;justify-content:space-between;align-items:center;gap:16px;padding:22px 0;cursor:pointer;font-size:19px;font-weight:500"><span>What file types and sizes?</span><span class="faq-plus" style="font-family:'IBM Plex Mono',monospace;font-size:20px;color:var(--graphite);transition:transform .2s ease;flex:none">+</span></summary>
+      <p style="color:var(--graphite);max-width:66ch;padding-bottom:24px">PDF, PNG, JPG, TIFF, and HEIC — up to 50 MB and 20 PDF pages per file today. Larger needs? Tell us in the pilot form.</p>
+    </details>
+    <details style="border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)">
+      <summary style="display:flex;justify-content:space-between;align-items:center;gap:16px;padding:22px 0;cursor:pointer;font-size:19px;font-weight:500"><span>What does it cost?</span><span class="faq-plus" style="font-family:'IBM Plex Mono',monospace;font-size:20px;color:var(--graphite);transition:transform .2s ease;flex:none">+</span></summary>
+      <p style="color:var(--graphite);max-width:66ch;padding-bottom:24px">Pilot first. After that, simple monthly pricing based on your review volume — no hardware, no per-station licenses, no long contract. We'll propose a number once we've seen your actual volume in the pilot.</p>
+    </details>
+  </div>
+</section>
+
+<!-- ============ FINAL CTA + FORM ============ -->
+<section id="pilot" data-reveal style="border-top:1px solid var(--rule);padding:clamp(72px,9vw,130px) 0;scroll-margin-top:88px">
+  <div style="max-width:1120px;margin:0 auto;padding:0 24px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px">
+      <sc-if value="{{ showReg }}" hint-placeholder-val="{{ true }}"><svg width="13" height="13" viewBox="0 0 14 14" style="flex:none"><circle cx="7" cy="7" r="4.2" fill="none" stroke="var(--graphite)" stroke-width="1.2"/><path d="M7 0.5V13.5M0.5 7H13.5" stroke="var(--graphite)" stroke-width="1"/></svg></sc-if>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite)">Start here</span>
+    </div>
+    <h2 style="font-size:clamp(28px,4vw,44px);line-height:1.12;max-width:22ch">Two weeks. Your real documents. Our team alongside yours.</h2>
+    <p style="color:var(--graphite);margin-top:20px;max-width:60ch">Tell us a little about your proofing process and we'll set up your pilot.</p>
+
+    <div style="margin-top:44px;max-width:480px">
+      <sc-if value="{{ showForm }}" hint-placeholder-val="{{ true }}">
+        <form onSubmit="{{ submit }}" novalidate="true">
+          <div style="margin-bottom:22px">
+            <label for="pc-name" style="display:block;font-size:14px;font-weight:500;margin-bottom:8px">Name</label>
+            <input id="pc-name" type="text" value="{{ form.name }}" onChange="{{ onName }}" aria-invalid="{{ invalidName }}" style="width:100%;padding:11px 12px;border:1px solid var(--rule);border-radius:6px;background:var(--paper);font-size:16px;color:var(--ink)">
+            <sc-if value="{{ errors.name }}"><div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--proof-red);margin-top:6px">{{ errors.name }}</div></sc-if>
+          </div>
+          <div style="margin-bottom:22px">
+            <label for="pc-company" style="display:block;font-size:14px;font-weight:500;margin-bottom:8px">Company</label>
+            <input id="pc-company" type="text" value="{{ form.company }}" onChange="{{ onCompany }}" aria-invalid="{{ invalidCompany }}" style="width:100%;padding:11px 12px;border:1px solid var(--rule);border-radius:6px;background:var(--paper);font-size:16px;color:var(--ink)">
+            <sc-if value="{{ errors.company }}"><div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--proof-red);margin-top:6px">{{ errors.company }}</div></sc-if>
+          </div>
+          <div style="margin-bottom:22px">
+            <label for="pc-email" style="display:block;font-size:14px;font-weight:500;margin-bottom:8px">Work email</label>
+            <input id="pc-email" type="email" value="{{ form.email }}" onChange="{{ onEmail }}" aria-invalid="{{ invalidEmail }}" style="width:100%;padding:11px 12px;border:1px solid var(--rule);border-radius:6px;background:var(--paper);font-size:16px;color:var(--ink)">
+            <sc-if value="{{ errors.email }}"><div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--proof-red);margin-top:6px">{{ errors.email }}</div></sc-if>
+          </div>
+          <div style="margin-bottom:28px">
+            <label for="pc-proof" style="display:block;font-size:14px;font-weight:500;margin-bottom:8px">What are you proofing today? <span style="color:var(--graphite);font-weight:400">(optional)</span></label>
+            <textarea id="pc-proof" rows="3" value="{{ form.proofing }}" onChange="{{ onProofing }}" placeholder="e.g. labels, cartons, IFUs, kit contents…" style="width:100%;padding:11px 12px;border:1px solid var(--rule);border-radius:6px;background:var(--paper);font-size:16px;color:var(--ink);resize:vertical;font-family:'IBM Plex Sans',sans-serif"></textarea>
+          </div>
+          <button type="submit" style="width:100%;background:var(--ink);color:var(--paper);padding:13px 24px;border-radius:6px;border:1px solid var(--ink);font-size:15px;font-weight:500;cursor:pointer" style-hover="background:#0d0e10">Request the pilot</button>
+        </form>
+      </sc-if>
+      <sc-if value="{{ submitted }}">
+        <div style="border:1px solid var(--rule);border-radius:10px;padding:36px 30px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:16px">
+          <svg width="34" height="34" viewBox="0 0 14 14" style="flex:none"><circle cx="7" cy="7" r="4.2" fill="none" stroke="var(--stamp-green)" stroke-width="1.2"/><path d="M7 0.5V13.5M0.5 7H13.5" stroke="var(--stamp-green)" stroke-width="1"/></svg>
+          <div style="font-family:'Source Serif 4',serif;font-size:22px;font-weight:600">Got it — we'll reply within one business day.</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--graphite)">Your details go to the founders, nowhere else.</div>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ============ FOOTER ============ -->
+<footer style="border-top:1px solid var(--rule);padding:32px 0">
+  <div style="max-width:1120px;margin:0 auto;padding:0 24px;display:flex;flex-wrap:wrap;gap:16px 32px;align-items:center;justify-content:space-between">
+    <div style="display:flex;align-items:center;gap:10px">
+      <svg width="14" height="14" viewBox="0 0 14 14" style="flex:none"><circle cx="7" cy="7" r="4.2" fill="none" stroke="var(--ink)" stroke-width="1.2"/><path d="M7 0.5V13.5M0.5 7H13.5" stroke="var(--ink)" stroke-width="1"/></svg>
+      <span style="font-family:'Source Serif 4',serif;font-size:16px;font-weight:600">ProofCheck</span>
+      <span style="color:var(--graphite);font-size:14px">© 2026</span>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--graphite)">
+      <a href="mailto:hello@proofcheck.app" style="color:var(--graphite);text-decoration:none" style-hover="color:var(--ink);text-decoration:underline">hello@proofcheck.app</a>
+      <span>Built by a small team that answers its own email.</span>
+    </div>
+  </div>
+</footer>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;showPageCropMarks&quot;: { &quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Layout&quot;, &quot;label&quot;: &quot;Crop marks at page corners&quot; },
+  &quot;showRegistrationMarks&quot;: { &quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Layout&quot;, &quot;label&quot;: &quot;Registration glyph before eyebrows&quot; }
+}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const rm = typeof window !== 'undefined' && window.matchMedia
+      && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    this.state = {
+      form: { name: '', company: '', email: '', proofing: '' },
+      errors: {},
+      submitted: false,
+      activeTab: 0,
+      showFindings: true,
+      drawn: !!rm,   // reduced motion: start fully drawn, no animation
+      rm: !!rm
+    };
+  }
+
+  set = (k) => (e) => {
+    const v = e.target.value;
+    this.setState((s) => ({
+      form: { ...s.form, [k]: v },
+      errors: { ...s.errors, [k]: '' }
+    }));
+  };
+
+  submit = (e) => {
+    e.preventDefault();
+    const f = this.state.form;
+    const errs = {};
+    if (!f.name.trim()) errs.name = 'Enter your name.';
+    if (!f.company.trim()) errs.company = 'Enter your company.';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim()))
+      errs.email = 'Enter a work email like name@company.com';
+    if (Object.keys(errs).length) { this.setState({ errors: errs }); return; }
+    // ---- Connect this to your backend ----
+    // Replace the line below with a POST to your endpoint, e.g.:
+    //   fetch('/api/pilot', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(f)})
+    // Or a mailto fallback:
+    //   window.location.href = 'mailto:hello@proofcheck.app?subject=Pilot request&body=' + encodeURIComponent(...)
+    this.setState({ submitted: true });
+  };
+
+  setTab = (i) => () => this.setState({ activeTab: i });
+  toggleFindings = () => this.setState((s) => ({ showFindings: !s.showFindings }));
+
+  componentDidMount() {
+    if (!this.state.rm) {
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => this.setState({ drawn: true }))
+      );
+      const els = document.querySelectorAll('[data-reveal]');
+      els.forEach((el) => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(8px)';
+        el.style.transition = 'opacity .6s ease, transform .6s ease';
+      });
+      this._io = new IntersectionObserver((ents) => {
+        ents.forEach((en) => {
+          if (en.isIntersecting) {
+            en.target.style.opacity = '1';
+            en.target.style.transform = 'none';
+            this._io.unobserve(en.target);
+          }
+        });
+      }, { threshold: 0.1, rootMargin: '0px 0px -8% 0px' });
+      els.forEach((el) => this._io.observe(el));
+    }
+  }
+
+  componentWillUnmount() { if (this._io) this._io.disconnect(); }
+
+  renderVals() {
+    const d = this.state.drawn;
+    const errs = this.state.errors;
+    const t = this.state.activeTab;
+    const sf = this.state.showFindings;
+    const rm = this.state.rm;
+    const markerWrap = {
+      display: 'inline-flex', alignItems: 'center', flex: 'none', overflow: 'hidden',
+      width: sf ? '16px' : '0px', marginRight: sf ? '6px' : '0px', opacity: sf ? 1 : 0,
+      transition: rm ? 'none' : 'opacity .15s ease, width .15s ease, margin .15s ease'
+    };
+    const ghostRow = {
+      display: 'flex', alignItems: 'center', gap: '6px', opacity: sf ? 1 : 0,
+      transition: rm ? 'none' : 'opacity .15s ease'
+    };
+    const findWrapStyle = {
+      display: 'grid', gridTemplateRows: sf ? '1fr' : '0fr', opacity: sf ? 1 : 0,
+      overflow: 'hidden', transition: rm ? 'none' : 'grid-template-rows .15s ease, opacity .15s ease'
+    };
+    const tabBase = {
+      fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px', letterSpacing: '.06em',
+      textTransform: 'uppercase', padding: '10px 2px', background: 'transparent', border: 'none',
+      borderBottom: '2px solid transparent', cursor: 'pointer', color: 'var(--graphite)',
+      whiteSpace: 'nowrap', marginBottom: '-1px'
+    };
+    const tabActive = { ...tabBase, color: 'var(--ink)', borderBottom: '2px solid var(--ink)' };
+    const trackStyle = {
+      width: '34px', height: '20px', borderRadius: '999px', flex: 'none', position: 'relative',
+      background: sf ? 'var(--ink)' : 'var(--rule)', transition: rm ? 'none' : 'background .15s ease'
+    };
+    const knobStyle = {
+      position: 'absolute', top: '2px', left: sf ? '16px' : '2px', width: '16px', height: '16px',
+      borderRadius: '50%', background: 'var(--paper)', transition: rm ? 'none' : 'left .15s ease'
+    };
+    return {
+      activeTab: t,
+      isFood: t === 0, isSupp: t === 1, isKit: t === 2,
+      onTab0: this.setTab(0), onTab1: this.setTab(1), onTab2: this.setTab(2),
+      tabStyle0: t === 0 ? tabActive : tabBase,
+      tabStyle1: t === 1 ? tabActive : tabBase,
+      tabStyle2: t === 2 ? tabActive : tabBase,
+      foodSel: t === 0 ? 'true' : 'false', suppSel: t === 1 ? 'true' : 'false', kitSel: t === 2 ? 'true' : 'false',
+      showFindings: sf, onToggle: this.toggleFindings, switchAria: sf ? 'true' : 'false',
+      markerWrap, ghostRow, findWrapStyle, trackStyle, knobStyle,
+      form: this.state.form,
+      errors: errs,
+      submitted: this.state.submitted,
+      showForm: !this.state.submitted,
+      invalidName: !!errs.name,
+      invalidCompany: !!errs.company,
+      invalidEmail: !!errs.email,
+      onName: this.set('name'),
+      onCompany: this.set('company'),
+      onEmail: this.set('email'),
+      onProofing: this.set('proofing'),
+      submit: this.submit,
+      strikeStyle: {
+        position: 'absolute', left: 0, top: '52%', height: '2px',
+        background: 'var(--proof-red)', transition: 'width .5s ease-out',
+        width: d ? '100%' : '0%'
+      },
+      correctionStyle: {
+        fontFamily: "'IBM Plex Mono', monospace", fontSize: '15px',
+        fontWeight: 500, color: 'var(--proof-red)',
+        transition: 'opacity .5s ease', opacity: d ? 1 : 0
+      },
+      showCrop: this.props.showPageCropMarks ?? true,
+      showReg: this.props.showRegistrationMarks ?? true
+    };
+  }
+}
+</script>
+</body>
+</html>
